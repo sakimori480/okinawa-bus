@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沖縄バス 歩ける範囲と時刻</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--ink:#1d2a33;--sub:#5d6b75;--line:#d9dfe3;--bg:#f6f8f9;--dep:#26547c;--dst:#c8455a;--both:#7a3f8f;--sel:#e08a00}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;color:var(--ink);background:#fff;display:grid;grid-template-columns:360px 1fr;grid-template-rows:1fr auto}
+aside{overflow:auto;padding:16px;background:var(--bg);border-right:1px solid var(--line)}
+#map{height:100%;min-height:360px}
+h1{font-size:18px;margin:0 0 12px;line-height:1.4}
+h2{font-size:15px;margin:0 0 8px;line-height:1.4}
+.row{margin:0 0 14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label.cap{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+select,button,input[type=date],input[type=time]{font:inherit;width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+button{cursor:pointer}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg>div{display:grid;gap:4px;align-content:start}
+.seg button.mode{font-weight:600}
+.seg button.mode.on[data-m=dep]{background:var(--dep);color:#fff;border-color:var(--dep)}
+.seg button.mode.on[data-m=dst]{background:var(--dst);color:#fff;border-color:var(--dst)}
+.seg button.mode.done{background:#eef1f4;color:var(--ink);border-style:dashed}
+.seg button.lock{font-size:13px}
+.seg button.lock.on{background:#fff;border:2px solid currentColor}
+.seg button.lock[data-l=dep].on{color:var(--dep)}.seg button.lock[data-l=dst].on{color:var(--dst)}
+button:disabled{opacity:.45;cursor:default}
+.when{background:#fff;border:2px solid var(--both);border-radius:10px;padding:12px;margin:0 0 14px}
+.when label.cap{font-size:13px;font-weight:700;color:var(--ink)}
+.when input[type=date],.when input[type=time]{font-size:18px;font-weight:700;padding:9px 8px;border:2px solid #b9a6c4}
+.when .row{margin:0 0 10px}
+.by{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.by label{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 4px;border:1px solid var(--line);border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;background:#fff}
+.by label:has(input:checked){background:var(--both);color:#fff;border-color:var(--both)}
+.by input{margin:0;accent-color:#fff}
+#go{background:var(--both);color:#fff;border-color:var(--both);font-size:17px;font-weight:700;padding:11px}
+#go:hover{filter:brightness(1.08)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #1d6fb8;outline-offset:2px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}.chk input{width:18px;height:18px;flex:none}
+.chk.off{color:var(--sub);cursor:default}
+.hint{font-size:12px;color:var(--sub);line-height:1.6;margin:4px 0 0}
+.notice{background:#fff;border:1px solid var(--line);border-left:4px solid var(--sub);border-radius:8px;padding:8px 10px;margin:0 0 14px;font-size:12px;line-height:1.6}
+.notice .nt{margin:0 0 2px;font-weight:700;font-size:13px}
+.notice ul{margin:0;padding-left:1.2em;list-style:disc;font-size:12px}
+.notice li{padding:1px 0}
+.notice a{color:#1d6fb8;font-weight:700}
+.warn{font-size:12px;color:#8a4b00;background:#fff4df;border:1px solid #f0d4a0;border-radius:6px;padding:6px 8px;line-height:1.6;margin:6px 0 0}
+.sum{font-size:13px;margin:0 0 6px;font-weight:700}
+.sum.dep{color:var(--dep)}.sum.dst{color:var(--dst)}
+ul{list-style:none;margin:0 0 14px;padding:0;font-size:13px}
+ul.stops li{border-bottom:1px solid var(--line)}
+ul.stops button{all:unset;box-sizing:border-box;width:100%;padding:6px 4px;display:flex;justify-content:space-between;gap:8px;cursor:pointer;border-radius:4px}
+ul.stops button:hover{background:#eaf0f4}
+ul.stops button:focus-visible{outline:2px solid #1d6fb8}
+ul.stops button.cur{background:#fff1d6}
+ul.stops span:last-child{color:var(--sub);white-space:nowrap}
+#tt{background:#fff;border:1px solid var(--line);border-left:4px solid var(--sel);border-radius:8px;padding:12px;margin:0 0 16px}
+#tt[hidden]{display:none}
+.tthead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.tthead button{width:auto;padding:2px 8px;font-size:12px}
+ul.deps li{padding:7px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:52px 1fr;gap:2px 8px}
+ul.deps .t{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+ul.deps .r{line-height:1.45}
+ul.deps .no{display:inline-block;min-width:2.2em;text-align:center;font-size:11px;font-weight:700;background:var(--ink);color:#fff;border-radius:4px;padding:1px 4px;margin-right:4px}
+ul.deps .to{color:var(--sub);font-size:12px}
+ul.deps .d{grid-column:2;font-size:12px;color:var(--dst)}
+ul.deps .d.nodst{color:var(--sub)}
+.more{width:auto;padding:4px 12px;font-size:12px}
+#jp{background:#fff;border:1px solid var(--line);border-left:4px solid var(--both);border-radius:8px;padding:12px;margin:0 0 16px}
+#jp[hidden]{display:none}
+ul.jrs li{border-bottom:1px solid var(--line)}
+.jtoggle{all:unset;box-sizing:border-box;display:block;width:calc(100% - 8px);margin:0 4px 6px;padding:5px 8px;font-size:12px;font-weight:700;color:#1d6fb8;cursor:pointer;border:1px solid var(--line);border-radius:6px;background:#fff}
+.jtoggle:hover{background:#f2f6fa}
+.jtoggle:focus-visible{outline:2px solid #1d6fb8}
+.jdet{padding:0 6px 6px}
+.jdet[hidden]{display:none}
+.tip{font-size:12px;line-height:1.6;background:#fff8e6;border:1px solid #f0dca8;border-radius:6px;padding:6px 8px;margin:0 4px 6px}
+.tip b{font-variant-numeric:tabular-nums}
+.farelink{font-size:12px;color:var(--sub);padding:0 4px 8px;line-height:1.6}
+.farelink a{color:#1d6fb8;font-weight:700;margin-right:4px}
+ul.jrs button{all:unset;box-sizing:border-box;display:block;width:100%;padding:8px 4px;cursor:pointer;border-radius:4px}
+ul.jrs button:hover{background:#f3eef6}
+ul.jrs button:focus-visible{outline:2px solid #1d6fb8}
+ul.jrs button.cur{background:#f3eaf7}
+h3{font-size:13px;margin:16px 0 4px;color:var(--sub)}
+.jtop{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 10px}
+.jline{font-size:15px;font-weight:700;line-height:1.6;margin:0 0 2px}
+.jline b{font-size:20px;font-variant-numeric:tabular-nums}
+.jline .plain,.jline .plain b{font-weight:400}
+.flow .plain b{font-weight:400}
+.xwarn{font-size:12px;font-weight:700;color:#9a3412;background:#fff1e8;border:1px solid #f5c7a9;border-radius:6px;padding:4px 8px;margin:6px 0 0;line-height:1.5}
+.jline .no{display:inline-block;min-width:2.4em;text-align:center;font-size:13px;font-weight:700;background:var(--ink);color:#fff;border-radius:4px;padding:1px 5px;margin-right:6px;vertical-align:2px}
+.jtop{margin:2px 0 0}
+.dur{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.badge{font-size:14px;font-weight:700;border-radius:5px;padding:2px 8px}
+.badge.direct{background:#e3f1e6;color:#1f6b35}
+.badge.xfer{background:#fdeedd;color:#8a4b00}
+.fare{font-size:13px;color:var(--sub);margin-left:auto}
+.fare.ok{color:var(--ink);font-weight:700}
+.flow{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 4px;margin:8px 0 2px;font-size:13px;line-height:1.7}
+.flow .ar{color:var(--sub)}
+.flow .wk{color:var(--sub)}
+.flow .pl{font-weight:700}
+.flow b{font-size:18px;font-variant-numeric:tabular-nums}
+.flow .no{display:inline-block;min-width:2.2em;text-align:center;font-size:12px;font-weight:700;background:var(--ink);color:#fff;border-radius:4px;padding:0 4px;margin-right:2px}
+.rname{font-size:11px;color:var(--sub);line-height:1.5}
+.jtimes{font-size:12px;color:var(--sub);margin-top:2px;font-variant-numeric:tabular-nums}
+.early{font-size:11px;font-weight:700;color:var(--sub);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+footer{grid-column:1/-1;font-size:11px;color:var(--sub);padding:6px 12px;border-top:1px solid var(--line);background:#fff;line-height:1.6}
+footer a{color:inherit}
+@media(max-width:760px){
+  /* スマホ：地図 → 操作欄 → クレジットの順に、ページ全体を縦にスクロール */
+  html,body{height:auto}
+  body{display:flex;flex-direction:column}
+  #map{order:-1;height:52vh;min-height:300px;flex:none}
+  aside{overflow:visible;border-right:0;border-top:1px solid var(--line)}
+  .when input[type=date],.when input[type=time]{font-size:17px}
+}
+</style>
+</head>
+<body>
+<aside>
+  <h1>沖縄バス：歩ける範囲と時刻</h1>
+  <div class="notice" role="note">
+    <p class="nt">はじめにお読みください</p>
+    <ul>
+      <li>沖縄バス（株）の路線の経路検索と時刻表示を目的としています。</li>
+      <li>琉球バス交通・那覇バス・東陽バスは公開データがないため、含まれていません。</li>
+      <li>運賃の検索は <a href="https://www.busnavi-okinawa.com/top/Transit" target="_blank" rel="noopener">バスなび沖縄</a> をご利用ください。</li>
+    </ul>
+  </div>
+  <p class="hint" id="status">データを読み込んでいます…</p>
+  <div class="row">
+    <label class="cap">1. 地図をクリックして場所を決める</label>
+    <div class="seg">
+      <div>
+        <button type="button" class="mode on" data-m="dep">出発地を置く</button>
+        <button type="button" class="lock" data-l="dep" disabled>出発地を確定</button>
+      </div>
+      <div>
+        <button type="button" class="mode" data-m="dst">目的地を置く</button>
+        <button type="button" class="lock" data-l="dst" disabled>目的地を確定</button>
+      </div>
+    </div>
+    <p class="hint" id="placeMsg"></p>
+  </div>
+  <div class="row grid2">
+    <div>
+      <label class="cap" for="speed">歩く速さ（直線距離）</label>
+      <select id="speed">
+        <option value="45">ゆっくり（45m/分）</option>
+        <option value="60" selected>普通（60m/分）</option>
+        <option value="75">速め（75m/分）</option>
+      </select>
+    </div>
+    <div>
+      <label class="cap" for="mins">歩く時間の上限</label>
+      <select id="mins">
+        <option value="5">5分</option>
+        <option value="10" selected>10分</option>
+        <option value="15">15分</option>
+      </select>
+    </div>
+  </div>
+  <div class="when">
+    <div class="row">
+      <div class="by" role="radiogroup" aria-label="時刻の指定方法">
+        <label><input type="radio" name="by" value="dep" checked> 出発時刻で探す</label>
+        <label><input type="radio" name="by" value="arr"> 到着時刻で探す</label>
+      </div>
+    </div>
+    <div class="row grid2">
+      <div>
+        <label class="cap" for="date">乗る日</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label class="cap" for="time" id="timeLab">出発する時刻</label>
+        <input type="time" id="time">
+      </div>
+    </div>
+    <div class="row">
+      <label class="cap" for="maxTr">乗り換え</label>
+      <select id="maxTr">
+        <option value="0">乗り換えなし（直通だけ）</option>
+        <option value="1" selected>1回まで</option>
+        <option value="2">2回まで</option>
+      </select>
+    </div>
+    <button type="button" id="go">この条件で行き方を検索</button>
+    <p class="warn" id="dateWarn" hidden></p>
+    <p class="hint" id="goMsg"></p>
+  </div>
+  <div class="row">
+    <label class="chk"><input type="checkbox" id="showOut" checked> 円の外のバス停も表示する</label>
+  </div>
+  <div class="row"><button id="reset">地点をリセット</button></div>
+
+  <section id="jp" hidden aria-live="polite">
+    <h2>出発地 → 目的地の行き方</h2>
+    <p class="hint" id="jpInfo"></p>
+    <ul class="jrs" id="jpList"></ul>
+    <div id="jpAroundBox" hidden>
+      <h3 id="jpAroundHead"></h3>
+      <ul class="jrs" id="jpAround"></ul>
+    </div>
+    <p class="hint" id="jpFare"></p>
+  </section>
+
+  <section id="tt" hidden aria-live="polite">
+    <div class="tthead">
+      <h2 id="ttName"></h2>
+      <button id="ttClose" aria-label="時刻表を閉じる">閉じる</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="merge" checked> 近くの同じ名前の乗り場もまとめる</label>
+    <label class="chk off" id="onlyDstLab"><input type="checkbox" id="onlyDst" disabled> 目的地の円内に行く便だけ</label>
+    <p class="hint" id="ttInfo"></p>
+    <ul class="deps" id="ttList"></ul>
+    <div id="ttMore"></div>
+  </section>
+
+  <div id="out"></div>
+</aside>
+<div id="map"></div>
+<footer>
+  このアプリは以下の著作物を改変して利用しています。
+  <a href="https://ottop.org/" target="_blank" rel="noopener">沖縄バス 公共交通オープンデータ（GTFS）</a>、OTTOP・沖縄バス株式会社、
+  <a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">クリエイティブ・コモンズ・ライセンス表示4.0国際</a>
+  （時刻表示・範囲検索のため形式を変換し抽出して表示）。<span id="feedNote"></span><br>
+  地図: <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院（地理院タイル）</a>。
+  距離は直線での目安です。時刻は時刻表上の予定で、遅れや運休は反映されません。最新の運行情報は事業者の案内をご確認ください。<br>
+  アプリの画面・検索の仕組み © 2026 sakimori480（バスのデータと地図は上記の各提供元に帰属します）
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data/bus-data.js"></script>
+<script>
+const map = L.map('map',{preferCanvas:true,zoomSnap:0.5,zoomDelta:0.5,wheelPxPerZoomLevel:160}).setView([26.2125,127.6811],13);
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'}).addTo(map);
+
+const $ = id=>document.getElementById(id);
+const COL = {dep:'#26547c', dst:'#c8455a', both:'#7a3f8f', none:'#66737d', sel:'#e08a00'};
+const D = window.BUS_DATA;
+let stops = [];            // {i, id, name, lat, lon, marker}
+let trips = [];            // {route, svc, seq:[stop番号], dep:[分], arr:[分], noPick:Set, noDrop:Set}
+let depsAt = [];           // stop番号 -> [[trip番号, 位置]]
+let mode = 'dep';
+const pt = {dep:null, dst:null};
+const layer = {dep:null, dst:null, depPin:null, dstPin:null, selRing:null};
+let inside = {dep:[], dst:[]};
+let dstSet = new Map();    // 目的地円内の stop番号 -> 目的地までの距離
+let sel = null;            // 選んだバス停の番号
+let showN = 30;
+let nbr = [];              // stop番号 -> [[近くのstop番号, 距離m]]（乗り換えで歩ける範囲）
+let journeys = [];         // 見つかった行き方
+let curJ = -1;             // 地図に描いている行き方
+let fareMap = new Map();   // 'route,乗る停留所,降りる停留所' -> 運賃
+const XFER_M = 300;        // 乗り換えで歩く距離の上限（直線）
+
+/* ---------- データの読み込み ---------- */
+function load(){
+  if(!D){ $('status').textContent='data/bus-data.js が読み込めませんでした。HTMLだけを表示するプレビュー画面では読み込めないので、フォルダ内の index.html をダブルクリックしてブラウザ（Edge・Chromeなど）で開いてください。data フォルダが同じ場所にあるかも確かめてください。'; return; }
+  stops = D.stops.map(([id,name,lat,lon],i)=>{
+    const marker = L.circleMarker([lat,lon],{radius:3,weight:1,color:COL.none,fillColor:COL.none,fillOpacity:.65,bubblingMouseEvents:false}).addTo(map);
+    marker.bindTooltip(name);
+    marker.on('click',()=>selectStop(i));
+    return {i,id,name,lat,lon,marker};
+  });
+  depsAt = stops.map(()=>[]);
+  trips = D.trips.map(([route,svc,seq,delta,dwell=[],noPick=[],noDrop=[]],ti)=>{
+    const dep=[]; let t=0;
+    delta.forEach((d,k)=>{ t = k===0 ? d : t+d; dep.push(t); });
+    const arr = dep.map((x,k)=>x-(dwell[k]||0));
+    const tr = {route,svc,seq,dep,arr,noPick:new Set(noPick),noDrop:new Set(noDrop)};
+    seq.forEach((s,k)=>{ if(k<seq.length-1 && !tr.noPick.has(k)) depsAt[s].push([ti,k]); });
+    return tr;
+  });
+  for(const a of depsAt) a.sort((x,y)=>trips[x[0]].dep[x[1]]-trips[y[0]].dep[y[1]]);
+  for(const [r,o,d,p] of D.fares||[]) fareMap.set(r+','+o+','+d,p);
+  nbr = stops.map(()=>[]);
+  for(let a=0;a<stops.length;a++) for(let b=a+1;b<stops.length;b++){
+    const A=stops[a], B=stops[b];
+    if(Math.abs(A.lat-B.lat)>0.004 || Math.abs(A.lon-B.lon)>0.004) continue;
+    const d=dist(A.lat,A.lon,B.lat,B.lon);
+    if(d<=XFER_M){ nbr[a].push([b,d]); nbr[b].push([a,d]); }
+  }
+  const m=D.meta;
+  $('status').textContent = stops.length+' か所のバス停、'+trips.length+' 便を読み込みました。地図をクリックして出発地・目的地を置き、バス停を選ぶと時刻が出ます。';
+  $('feedNote').textContent = 'データの期間 '+fmtYmd(m.feedStart)+'〜'+fmtYmd(m.feedEnd)+'。';
+  $('date').min = isoYmd(m.feedStart); $('date').max = isoYmd(m.feedEnd);
+}
+
+/* ---------- 日付・時刻 ---------- */
+const fmtYmd = s=>s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8);
+const isoYmd = s=>s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);
+const hhmm = m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+function nowJst(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return {date:p.year+'-'+p.month+'-'+p.day, time:p.hour+':'+p.minute};
+}
+function setNow(){ const n=nowJst(); $('date').value=n.date; $('time').value=n.time; }
+function activeServices(){
+  const key=$('date').value.replaceAll('-','');
+  const w=$('dateWarn');
+  if(!D){ w.hidden=true; return new Set(); }
+  if(key<D.meta.feedStart || key>D.meta.feedEnd){
+    w.hidden=false;
+    w.textContent='選んだ日はデータの期間（'+fmtYmd(D.meta.feedStart)+'〜'+fmtYmd(D.meta.feedEnd)+'）の外なので、時刻を出せません。';
+  } else w.hidden=true;
+  return new Set(D.days[key]||[]);
+}
+function timeMin(){ const v=$('time').value; if(!v) return 0; const [h,m]=v.split(':').map(Number); return h*60+m; }
+
+/* ---------- 地図と円 ---------- */
+function dist(a,b,c,d){ // haversine, meters
+  const R=6371000, rad=x=>x*Math.PI/180;
+  const dLa=rad(c-a), dLo=rad(d-b);
+  const h=Math.sin(dLa/2)**2+Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+/* 出発地・目的地を置く／確定する */
+const lock = {dep:false, dst:false};
+const NAME = {dep:'出発地', dst:'目的地'};
+function setMode(m){ mode=m; refreshSeg(); }
+function refreshSeg(){
+  if(lock[mode] && !lock[mode==='dep'?'dst':'dep']) mode = mode==='dep'?'dst':'dep';
+  document.querySelectorAll('.seg button.mode').forEach(b=>{
+    const k=b.dataset.m;
+    b.classList.toggle('on', k===mode && !lock[k]);
+    b.classList.toggle('done', lock[k]);
+    b.disabled=lock[k];
+    b.textContent = lock[k] ? NAME[k]+'（確定済み）' : NAME[k]+'を置く';
+  });
+  document.querySelectorAll('.seg button.lock').forEach(b=>{
+    const k=b.dataset.l;
+    b.classList.toggle('on', lock[k]);
+    b.disabled = !pt[k] && !lock[k];
+    b.textContent = lock[k] ? NAME[k]+'を変更する' : NAME[k]+'を確定';
+  });
+  const msg=$('placeMsg');
+  if(lock.dep && lock.dst) msg.textContent='出発地と目的地を確定しました。地図をクリックしても動きません。';
+  else if(!lock[mode]) msg.textContent='地図をクリックすると「'+NAME[mode]+'」が置かれます。'+(pt[mode]?'位置がよければ「'+NAME[mode]+'を確定」を押してください。':'');
+}
+map.on('click', e=>{
+  if(lock[mode]){ $('placeMsg').textContent=NAME[mode]+'は確定済みです。動かすときは「'+NAME[mode]+'を変更する」を押してください。'; return; }
+  pt[mode]=e.latlng; update(); refreshSeg();
+});
+document.querySelectorAll('.seg button.mode').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.m)));
+document.querySelectorAll('.seg button.lock').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.l;
+  lock[k]=!lock[k];
+  if(lock[k]){ if(!lock[k==='dep'?'dst':'dep']) mode=(k==='dep'?'dst':'dep'); }  // 確定したら、もう一方を置く番にする
+  else mode=k;                                                                     // 変更するときは、その地点を置く番にする
+  refreshSeg();
+}));
+['speed','mins','showOut'].forEach(id=>$(id).addEventListener('change',update));
+['merge','onlyDst'].forEach(id=>$(id).addEventListener('change',()=>{ showN=30; renderTT(); }));
+['date','time'].forEach(id=>$(id).addEventListener('change',()=>{ showN=30; renderTT(); markStale(); }));
+$('maxTr').addEventListener('change',markStale);
+$('go').addEventListener('click',runSearch);
+$('reset').addEventListener('click',()=>{ pt.dep=pt.dst=null; lock.dep=lock.dst=false; mode='dep'; update(); refreshSeg(); });
+$('ttClose').addEventListener('click',()=>selectStop(null));
+
+function update(){
+  const speed=+$('speed').value, mins=+$('mins').value;
+  const radius=speed*mins;
+  const showOut=$('showOut').checked;
+  inside={dep:[],dst:[]};
+  for(const k of ['dep','dst']){
+    if(layer[k]){ layer[k].remove(); layer[k]=null; }
+    if(layer[k+'Pin']){ layer[k+'Pin'].remove(); layer[k+'Pin']=null; }
+    if(pt[k]){
+      layer[k]=L.circle(pt[k],{radius,color:COL[k],weight:2,fillColor:COL[k],fillOpacity:.08,interactive:false}).addTo(map);
+      layer[k+'Pin']=L.circleMarker(pt[k],{radius:7,color:'#fff',weight:2,fillColor:COL[k],fillOpacity:1,interactive:false}).addTo(map);
+    }
+  }
+  dstSet=new Map();
+  for(const s of stops){
+    const d1=pt.dep?dist(pt.dep.lat,pt.dep.lng,s.lat,s.lon):Infinity;
+    const d2=pt.dst?dist(pt.dst.lat,pt.dst.lng,s.lat,s.lon):Infinity;
+    const a=d1<=radius, b=d2<=radius;
+    if(a) inside.dep.push({s,d:d1});
+    if(b){ inside.dst.push({s,d:d2}); dstSet.set(s.i,d2); }
+    const c=a&&b?COL.both:a?COL.dep:b?COL.dst:COL.none;
+    s.marker.setStyle({color:c,fillColor:c,radius:(a||b)?6:3,fillOpacity:(a||b)?.95:.65});
+    if(a||b||s.i===sel){ if(!map.hasLayer(s.marker)) s.marker.addTo(map); s.marker.bringToFront(); }
+    else if(showOut){ if(!map.hasLayer(s.marker)) s.marker.addTo(map); }
+    else if(map.hasLayer(s.marker)) s.marker.remove();
+  }
+  render(radius,speed);
+  renderTT();
+  markStale();
+}
+
+function render(radius,speed){
+  const out=$('out'); out.textContent='';
+  const lab={dep:'出発地の円内',dst:'目的地の円内'};
+  if(!pt.dep && !pt.dst){
+    const p=document.createElement('p'); p.className='hint';
+    p.textContent='円の半径は「歩く速さ × 時間」で決まります（今は'+radius+'m）。地図上のバス停を直接クリックしても時刻が出ます。'; out.appendChild(p); return;
+  }
+  for(const k of ['dep','dst']){
+    if(!pt[k]) continue;
+    const h=document.createElement('p'); h.className='sum '+k;
+    h.textContent=lab[k]+'：'+inside[k].length+'か所（半径'+radius+'m）'; out.appendChild(h);
+    const ul=document.createElement('ul'); ul.className='stops';
+    inside[k].sort((x,y)=>x.d-y.d).slice(0,40).forEach(({s,d})=>{
+      const li=document.createElement('li');
+      const b=document.createElement('button'); b.type='button';
+      if(s.i===sel) b.className='cur';
+      const n=document.createElement('span'); n.textContent=s.name;
+      const m=document.createElement('span'); m.textContent='約'+Math.round(d)+'m・徒歩約'+Math.max(1,Math.round(d/speed))+'分';
+      b.append(n,m); b.addEventListener('click',()=>selectStop(s.i));
+      li.appendChild(b); ul.appendChild(li);
+    });
+    out.appendChild(ul);
+    if(inside[k].length>40){ const p=document.createElement('p'); p.className='hint'; p.textContent='近い順に40か所まで表示しています。'; out.appendChild(p); }
+  }
+}
+
+/* ---------- 時刻表 ---------- */
+function selectStop(i){
+  sel=i; showN=30;
+  if(layer.selRing){ layer.selRing.remove(); layer.selRing=null; }
+  if(i!=null){
+    const s=stops[i];
+    layer.selRing=L.circleMarker([s.lat,s.lon],{radius:11,color:COL.sel,weight:3,fill:false,interactive:false}).addTo(map);
+  }
+  update();
+  if(i!=null && window.matchMedia('(max-width:760px)').matches) $('tt').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function groupOf(i){
+  if(!$('merge').checked) return [i];
+  const s=stops[i];
+  return stops.filter(o=>o.name===s.name && dist(s.lat,s.lon,o.lat,o.lon)<=300).map(o=>o.i);
+}
+
+// その便で、目的地の円内のどこで降りるのが一番早く目的地に着くか
+function bestAlight(tr,from,speed){
+  let best=null;
+  for(let k=from+1;k<tr.seq.length;k++){
+    const d=dstSet.get(tr.seq[k]);
+    if(d==null || tr.noDrop.has(k)) continue;
+    const walk=Math.max(1,Math.round(d/speed));
+    const reach=tr.arr[k]+walk;
+    if(!best || reach<best.reach) best={k,walk,reach};
+  }
+  return best;
+}
+
+function renderTT(){
+  const box=$('tt');
+  const hasDst=!!pt.dst;
+  $('onlyDst').disabled=!hasDst; $('onlyDstLab').classList.toggle('off',!hasDst);
+  if(sel==null || !D){ box.hidden=true; return; }
+  box.hidden=false;
+  const group=groupOf(sel);
+  $('ttName').textContent=stops[sel].name+(group.length>1?'（'+group.length+'か所の乗り場）':'')+' の発車時刻';
+  const svc=activeServices(), from=timeMin(), speed=+$('speed').value;
+  const onlyDst=hasDst && $('onlyDst').checked;
+  let rows=[];
+  for(const g of group) for(const [ti,k] of depsAt[g]){
+    const tr=trips[ti];
+    if(!svc.has(tr.svc) || tr.dep[k]<from) continue;
+    const alight=hasDst?bestAlight(tr,k,speed):null;
+    if(onlyDst && !alight) continue;
+    rows.push({tr,k,alight});
+  }
+  rows.sort((a,b)=>a.tr.dep[a.k]-b.tr.dep[b.k]);
+  // 同名乗り場をまとめたときに、同じ便が二重に出ないようにする
+  const seen=new Set(); rows=rows.filter(r=>!seen.has(r.tr) && seen.add(r.tr));
+
+  const list=$('ttList'); list.textContent='';
+  const info=$('ttInfo');
+  if(!$('dateWarn').hidden) info.textContent='';
+  else if(!rows.length) info.textContent=($('time').value?$('time').value+' 以降に':'この日に')+(onlyDst?'目的地の円内へ行く':'')+'便はありません。';
+  else info.textContent=($('time').value?$('time').value+' 以降 ':'')+rows.length+' 便'+(onlyDst?'（目的地の円内へ行く便）':'');
+  for(const {tr,k,alight} of rows.slice(0,showN)){
+    const li=document.createElement('li');
+    const t=document.createElement('span'); t.className='t'; t.textContent=hhmm(tr.dep[k]);
+    const r=document.createElement('span'); r.className='r';
+    const [no,name]=D.routes[tr.route];
+    const nb=document.createElement('span'); nb.className='no'; nb.textContent=no||'—';
+    const to=document.createElement('span'); to.className='to'; to.textContent='　'+stops[tr.seq[tr.seq.length-1]].name+' 行き';
+    r.append(nb,document.createTextNode(name),to);
+    li.append(t,r);
+    if(hasDst){
+      const d=document.createElement('span');
+      if(alight){
+        d.className='d';
+        d.textContent='→ '+stops[tr.seq[alight.k]].name+' '+hhmm(tr.arr[alight.k])+'着、徒歩約'+alight.walk+'分で目的地（'+hhmm(alight.reach)+'ごろ）';
+      } else { d.className='d nodst'; d.textContent='目的地の円内には停まりません'; }
+      li.appendChild(d);
+    }
+    list.appendChild(li);
+  }
+  const more=$('ttMore'); more.textContent='';
+  if(rows.length>showN){
+    const b=document.createElement('button'); b.className='more'; b.type='button';
+    b.textContent='さらに表示（残り'+(rows.length-showN)+'便）';
+    b.addEventListener('click',()=>{ showN+=30; renderTT(); });
+    more.appendChild(b);
+  }
+}
+
+/* ---------- 行き方さがし（乗り換えあり） ----------
+   便ごとに「乗れる最初の停留所」から先の到着時刻を更新していくのを、
+   乗る回数ぶん繰り返す（RAPTOR という方法を簡単にしたもの）。 */
+const walkMin = (d,speed)=>Math.max(1,Math.round(d/speed));
+
+function searchOnce(t0,maxRides,run,speed){
+  const n=stops.length, INF=1e9;
+  const arrK=[], howK=[], busHowK=[];
+  const a0=new Array(n).fill(INF), h0=new Array(n);
+  for(const {s,d} of inside.dep){ a0[s.i]=t0+walkMin(d,speed); h0[s.i]={type:'start',mins:walkMin(d,speed)}; }
+  arrK.push(a0); howK.push(h0); busHowK.push([]);
+  for(let k=1;k<=maxRides;k++){
+    const prev=arrK[k-1], cur=prev.slice(), how=new Array(n), busHow=new Array(n);
+    const busT=new Map();
+    const buf=k>1?1:0; // 乗り継ぎに最低1分
+    for(const ti of run){
+      const tr=trips[ti]; let board=-1;
+      for(let p=0;p<tr.seq.length;p++){
+        const s=tr.seq[p];
+        if(board>=0 && !tr.noDrop.has(p) && tr.arr[p]<cur[s]){
+          cur[s]=tr.arr[p]; how[s]=busHow[s]={type:'bus',ti,from:board,to:p}; busT.set(s,tr.arr[p]);
+        }
+        if(board<0 && p<tr.seq.length-1 && !tr.noPick.has(p) && prev[s]+buf<=tr.dep[p]) board=p;
+      }
+    }
+    // 降りた停留所から近くの停留所へ歩いて乗り換え
+    for(const [s,t] of busT) for(const [s2,d] of nbr[s]){
+      const w=walkMin(d,speed), tt=t+w;
+      if(tt<cur[s2]){ cur[s2]=tt; how[s2]={type:'walk',from:s,mins:w}; }
+    }
+    arrK.push(cur); howK.push(how); busHowK.push(busHow);
+  }
+  // 乗る回数ごとに、目的地に一番早く着く行き方を取り出す
+  // （バスを降りた停留所から目的地へ直接歩く。円内で乗り換え徒歩を重ねない）
+  const out=[]; let bestReach=INF;
+  for(let k=1;k<=maxRides;k++){
+    let best=null;
+    for(const {s,d} of inside.dst){
+      const h=busHowK[k][s.i]; if(!h) continue;
+      const reach=trips[h.ti].arr[h.to]+walkMin(d,speed);
+      if(!best || reach<best.reach) best={s:s.i,reach,walk:walkMin(d,speed),h};
+    }
+    if(!best || best.reach>=bestReach) continue;
+    bestReach=best.reach;
+    const legs=trace(k,best.s,arrK,howK,busHowK,best.h);
+    if(legs) out.push(makeJourney(legs,best));
+  }
+  return out;
+}
+
+function trace(k,s,arrK,howK,busHowK,first){
+  const legs=[];
+  while(true){
+    let h=first||howK[k][s]; first=null;
+    while(!h && k>0){ k--; h=howK[k][s]; }   // 前の回のまま変わっていない
+    if(!h) return null;
+    if(h.type==='start'){ legs.unshift({type:'walk0',mins:h.mins,to:s}); return legs; }
+    if(h.type==='walk'){ legs.unshift({type:'walk',from:h.from,to:s,mins:h.mins}); s=h.from; h=busHowK[k][s]; if(!h) return null; }
+    const tr=trips[h.ti];
+    legs.unshift({type:'bus',ti:h.ti,from:h.from,to:h.to});
+    s=tr.seq[h.from]; k--;
+  }
+}
+
+function makeJourney(legs,end){
+  const buses=legs.filter(l=>l.type==='bus');
+  const first=buses[0], ft=trips[first.ti];
+  const leave=ft.dep[first.from]-legs[0].mins;
+  return {legs,end,leave,reach:end.reach,rides:buses.length,
+          key:buses.map(b=>b.ti+':'+b.from+':'+b.to).join('|'), firstDep:ft.dep[first.from]};
+}
+
+// 出発時刻で探す：指定時刻の1時間前から探し始め、1時間後を過ぎる（かつ指定時刻以降の候補が3件そろう）まで繰り返す
+// 到着時刻で探す：指定時刻の5時間前から探し始め、出発が指定時刻＋1時間を過ぎるまで繰り返す
+function findJourneys(T,by){
+  const svc=activeServices(), speed=+$('speed').value, maxRides=+$('maxTr').value+1;
+  const run=[]; trips.forEach((tr,ti)=>{ if(svc.has(tr.svc)) run.push(ti); });
+  const found=new Map();
+  let t0=Math.max(0,by==='arr'?T-300:T-60);
+  for(let it=0; it<(by==='arr'?150:40); it++){
+    const res=searchOnce(t0,maxRides,run,speed);
+    if(!res.length) break;
+    for(const j of res) if(!found.has(j.key)) found.set(j.key,j);
+    t0=Math.min(...res.map(j=>j.leave))+1;  // 次はそれより後に出る行き方
+    if(by==='arr' ? t0>T+60
+                  : t0>T+60 && keepGood([...found.values()]).filter(j=>j.leave>=T).length>=3) break;
+  }
+  return keepGood([...found.values()]).sort((a,b)=>a.leave-b.leave||a.reach-b.reach);
+}
+
+// 「後に出て、早く着き、乗り換えも少ない」行き方があるものは外す。
+// 乗り換えが多いのに数分しか得しない行き方も外す。
+function keepGood(all){
+  const worse=(a,b)=>b!==a && ((b.leave>=a.leave && b.reach<=a.reach && b.rides<=a.rides &&
+                                (b.leave>a.leave || b.reach<a.reach || b.rides<a.rides)) ||
+                               (b.rides<a.rides && b.reach<=a.reach && b.leave>=a.leave-5));
+  return all.filter(a=>!all.some(b=>worse(a,b)));
+}
+
+// 運賃（データにある区間だけ）。全区間わかれば合計、1つでも欠けたら null
+function legFare(l){
+  const tr=trips[l.ti], o=tr.seq[l.from], d=tr.seq[l.to];
+  return fareMap.get(tr.route+','+o+','+d) ?? fareMap.get('-1,'+o+','+d);
+}
+function journeyFare(j){
+  let sum=0;
+  for(const l of j.legs) if(l.type==='bus'){ const f=legFare(l); if(f==null) return null; sum+=f; }
+  return sum;
+}
+
+const byMode=()=>document.querySelector('input[name=by]:checked').value;  // 'dep' or 'arr'
+document.querySelectorAll('input[name=by]').forEach(r=>r.addEventListener('change',()=>{
+  $('timeLab').textContent = byMode()==='arr' ? '到着したい時刻' : '出発する時刻';
+  markStale();
+}));
+let searched=null;   // 最後に検索したときの条件（変わったら注意を出す）
+const condKey=()=>[pt.dep&&pt.dep.toString(),pt.dst&&pt.dst.toString(),$('speed').value,$('mins').value,$('date').value,$('time').value,$('maxTr').value,byMode()].join('|');
+function markStale(){
+  const m=$('goMsg');
+  if(!pt.dep || !pt.dst){ m.textContent='出発地と目的地を地図に置いてから検索してください。'; return; }
+  m.textContent = searched && searched!==condKey() ? '条件が変わりました。「この条件で行き方を検索」を押すと反映されます。' : '';
+}
+
+function runSearch(){
+  activeServices(); // 期間外の注意を更新
+  const box=$('jp');
+  journeys=[]; drawJourney(-1);
+  $('jpList').textContent=''; $('jpAround').textContent=''; $('jpAroundBox').hidden=true; $('jpFare').textContent='';
+  if(!D || !pt.dep || !pt.dst){ box.hidden=true; markStale(); return; }
+  searched=condKey(); markStale();
+  box.hidden=false;
+  const info=$('jpInfo');
+  if(!$('dateWarn').hidden){ info.textContent='データの期間外の日付です。'; return; }
+  if(!inside.dep.length || !inside.dst.length){
+    info.textContent='出発地か目的地の円内にバス停がありません。歩く時間を長くするか、場所を動かしてください。'; return;
+  }
+  const T=timeMin(), tlabel=$('time').value||'0:00', by=byMode();
+  const all=findJourneys(T,by);
+  let main, around;
+  if(by==='arr'){
+    // 指定時刻までに着くもののうち、出発が遅い順に3件。ほかは到着が前後1時間のもの
+    main=all.filter(j=>j.reach<=T).sort((a,b)=>b.leave-a.leave||a.reach-b.reach).slice(0,3);
+    around=all.filter(j=>!main.includes(j) && j.reach>=T-60 && j.reach<=T+60).sort((a,b)=>a.reach-b.reach);
+    info.textContent = main.length
+      ? tlabel+' までに目的地に着く行き方（出発が遅い順）'
+      : tlabel+' までに着ける便は見つかりませんでした。乗り換え回数を増やすか、到着時刻を遅くしてみてください。';
+  } else {
+    main=all.filter(j=>j.leave>=T).slice(0,3);
+    around=all.filter(j=>!main.includes(j) && j.leave>=T-60 && j.leave<=T+60);
+    info.textContent = main.length
+      ? tlabel+' 以降に出発する行き方（早い順）'
+      : tlabel+' 以降、この条件で行ける便は見つかりませんでした。乗り換え回数を増やすか、時刻を早めてみてください。';
+  }
+  journeys=[...main,...around];
+  main.forEach((j,i)=>$('jpList').appendChild(card(j,i,T,by)));
+  if(around.length){
+    $('jpAroundBox').hidden=false;
+    $('jpAroundHead').textContent='ほかの行き方（'+hhmm(Math.max(0,T-60))+'〜'+hhmm(T+60)+' に'+(by==='arr'?'到着':'出発')+'）';
+    around.forEach((j,i)=>$('jpAround').appendChild(card(j,main.length+i,T,by)));
+  }
+  if(journeys.length){
+    $('jpFare').textContent='運賃は公開データにある空港リムジンバスだけ表示しています。路線バスの運賃は、各行き方の「運賃をバスなび沖縄で調べる」から、表示している停留所名を入力して調べてください（外部サイトが開きます）。';
+    drawJourney(0);
+  }
+  if(window.matchMedia('(max-width:760px)').matches) box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// 最初に乗る便が、乗る停留所より後（目的地側）で出発地の円内をまだ通るなら、いちばん先のバス停を返す
+function laterBoarding(j){
+  const l=j.legs.find(x=>x.type==='bus'); if(!l) return null;
+  const tr=trips[l.ti], speed=+$('speed').value, maxWalk=+$('mins').value;  // 徒歩は「歩く時間の上限」まで
+  const near=new Map(inside.dep.map(x=>[x.s.i,x.d]));
+  for(let p=l.to-1;p>l.from;p--){
+    const s=tr.seq[p], d=near.get(s);
+    if(d==null || tr.noPick.has(p) || stops[s].name===stops[tr.seq[l.from]].name) continue;
+    const walk=walkMin(d,speed);
+    if(walk>maxWalk) continue;
+    return {s,walk,dep:tr.dep[p],leave:tr.dep[p]-walk};
+  }
+  return null;
+}
+
+function card(j,idx,T,by){
+  const el=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
+  const li=document.createElement('li');
+  const b=el('button'); b.type='button'; b.dataset.idx=idx;
+  // 1行目：系統番号：バス停 発 → バス停 着（乗る便ごとに1行）
+  // 乗り換えがあるときは、乗り換え地点（前の便の着・次の便の発）を太字にしない
+  const buses=j.legs.filter(l=>l.type==='bus');
+  const part=(name,time,word,plain)=>{ const sp=el('span',plain?'plain':null); sp.append(name+' ', el('b',null,time), word); return sp; };
+  buses.forEach((l,i)=>{
+    const tr=trips[l.ti], line=el('div','jline');
+    line.append(el('span','no',D.routes[tr.route][0]||'—'),
+      part(stops[tr.seq[l.from]].name, hhmm(tr.dep[l.from]), '発', i>0), ' → ',
+      part(stops[tr.seq[l.to]].name, hhmm(tr.arr[l.to]), '着', i<buses.length-1));
+    b.appendChild(line);
+  });
+  // 直通か・所要時間・運賃（運賃はデータにあるときだけ）
+  const top=el('div','jtop');
+  top.append(j.rides===1 ? el('span','badge direct','直通') : el('span','badge xfer','乗り換え'+(j.rides-1)+'回'),
+             el('span','dur','所要'+(j.reach-j.leave)+'分'));
+  if(by==='arr'){ if(j.reach>T) top.appendChild(el('span','early','指定時刻より後に到着')); }
+  else if(j.leave<T) top.appendChild(el('span','early','指定時刻より前'));
+  const fare=journeyFare(j);
+  if(fare!=null) top.appendChild(el('span','fare ok','運賃 '+fare.toLocaleString()+'円'));
+  b.appendChild(top);
+  // 乗り換えの時間（前の便の到着から次の便の発車まで。歩く時間を含む）が10分以下なら注意
+  for(let i=1;i<buses.length;i++){
+    const p=buses[i-1], n=buses[i], pt_=trips[p.ti], nt=trips[n.ti];
+    const gap=nt.dep[n.from]-pt_.arr[p.to];
+    if(gap<=10){
+      const where=stops[pt_.seq[p.to]].name+(pt_.seq[p.to]!==nt.seq[n.from]?' → '+stops[nt.seq[n.from]].name:'');
+      b.appendChild(el('div','xwarn','⚠ 乗り換え時間が'+gap+'分しかありません（'+where+'）。乗り換えが間に合わない可能性があります。'));
+    }
+  }
+  // 2行目：出発地 出る時刻 → 徒歩 → バス停 発 → バス停 着 → … → 目的地
+  const flow=el('div','flow'), arrow=()=>el('span','ar','→');
+  const names=[];
+  const st=el('span','pl'); st.append('出発地 ', el('b',null,hhmm(j.leave)), '発');
+  flow.appendChild(st);
+  for(const l of j.legs){
+    flow.appendChild(arrow());
+    if(l.type==='walk0') flow.appendChild(el('span','wk','徒歩'+l.mins+'分'));
+    else if(l.type==='walk') flow.appendChild(el('span','wk','乗り換え・徒歩'+l.mins+'分'));
+    else {
+      const tr=trips[l.ti], no=D.routes[tr.route][0]||'—';
+      const bi=buses.indexOf(l);
+      const on=el('span',bi>0?'plain':null); on.append(el('span','no',no), stops[tr.seq[l.from]].name+' ', el('b',null,hhmm(tr.dep[l.from])), '発');
+      const off=el('span',bi<buses.length-1?'plain':null); off.append(stops[tr.seq[l.to]].name+' ', el('b',null,hhmm(tr.arr[l.to])), '着');
+      flow.append(on, arrow(), off);
+      names.push(no+'：'+D.routes[tr.route][1]+'（'+stops[tr.seq[tr.seq.length-1]].name+' 行き）');
+    }
+  }
+  flow.append(arrow(), el('span','wk','徒歩'+j.end.walk+'分'), arrow(), el('span','pl','目的地'));
+  b.addEventListener('click',()=>drawJourney(idx));
+  li.appendChild(b);
+  // 出発地から目的地までの手順は折りたたんでおき、押したら開く
+  const det=el('div','jdet'); det.id='jdet'+idx; det.hidden=true;
+  det.append(flow, el('div','rname',names.join(' ／ ')),
+    el('div','jtimes','出発地を出る '+hhmm(j.leave)+' ／ 目的地に着く '+hhmm(j.reach)+'ごろ'));
+  const tg=el('button','jtoggle','▼ 出発地からの行き方を見る'); tg.type='button';
+  tg.setAttribute('aria-expanded','false'); tg.setAttribute('aria-controls',det.id);
+  tg.addEventListener('click',()=>{
+    det.hidden=!det.hidden;
+    tg.setAttribute('aria-expanded',String(!det.hidden));
+    tg.textContent=(det.hidden?'▼ 出発地からの行き方を見る':'▲ 行き方を閉じる');
+  });
+  li.append(tg,det);
+  // 同じ便に、出発地の円内で目的地寄りのバス停からも乗れるなら知らせる（運賃が安くなることがある）
+  const later=laterBoarding(j);
+  if(later){
+    const tip=el('div','tip');
+    tip.append('💡 同じ便に、円内の「', el('b',null,stops[later.s].name), '」（徒歩'+later.walk+'分、',
+      el('b',null,hhmm(later.dep)), '発）からも乗れます。出発地を出るのは '+hhmm(later.leave)+'。目的地寄りから乗ると運賃が安くなることがあります。');
+    li.appendChild(tip);
+  }
+  // 運賃はバスなび沖縄で（乗る・降りる停留所名を添えて案内する）
+  const fb=el('div','farelink');
+  const a=el('a',null,'運賃をバスなび沖縄で調べる'); a.href='https://www.busnavi-okinawa.com/top/Transit'; a.target='_blank'; a.rel='noopener';
+  fb.append(a, el('span',null,'（'+buses.map(l=>stops[trips[l.ti].seq[l.from]].name+' → '+stops[trips[l.ti].seq[l.to]].name).join('、')+' を入力）'));
+  li.appendChild(fb);
+  return li;
+}
+
+function drawJourney(idx){
+  curJ=idx;
+  if(layer.route){ layer.route.remove(); layer.route=null; }
+  document.querySelectorAll('.jrs button').forEach(b=>b.classList.toggle('cur',+b.dataset.idx===idx));
+  if(idx<0 || !journeys[idx]) return;
+  const j=journeys[idx], g=L.featureGroup();
+  const P=i=>[stops[i].lat,stops[i].lon];
+  let last=[pt.dep.lat,pt.dep.lng];
+  for(const l of j.legs){
+    if(l.type==='bus'){
+      const tr=trips[l.ti], pts=tr.seq.slice(l.from,l.to+1).map(P);
+      L.polyline(pts,{color:COL.both,weight:5,opacity:.85}).addTo(g);
+      L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:COL.both,fillOpacity:1}).bindTooltip(stops[tr.seq[l.from]].name+' '+hhmm(tr.dep[l.from])+'発').addTo(g);
+      L.circleMarker(pts[pts.length-1],{radius:6,color:'#fff',weight:2,fillColor:COL.both,fillOpacity:1}).bindTooltip(stops[tr.seq[l.to]].name+' '+hhmm(tr.arr[l.to])+'着').addTo(g);
+      last=pts[pts.length-1];
+    } else {
+      L.polyline([last,P(l.to)],{color:COL.none,weight:3,dashArray:'4 6'}).addTo(g);
+      last=P(l.to);
+    }
+  }
+  L.polyline([last,[pt.dst.lat,pt.dst.lng]],{color:COL.none,weight:3,dashArray:'4 6'}).addTo(g);
+  layer.route=g.addTo(map);
+  map.fitBounds(g.getBounds(),{padding:[30,30]});
+}
+
+setNow();
+load();
+update();
+refreshSeg();
+</script>
+</body>
+</html>
