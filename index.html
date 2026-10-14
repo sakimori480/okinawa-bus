@@ -15,7 +15,8 @@ aside{overflow:auto;padding:16px;background:var(--bg);border-right:1px solid var
 h1{font-size:18px;margin:0 0 12px;line-height:1.4}
 h2{font-size:15px;margin:0 0 8px;line-height:1.4}
 .row{margin:0 0 14px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.grid2>div{min-width:0}
 label.cap{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
 select,button,input[type=date],input[type=time]{font:inherit;width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
 button{cursor:pointer}
@@ -31,7 +32,9 @@ button{cursor:pointer}
 button:disabled{opacity:.45;cursor:default}
 .when{background:#fff;border:2px solid var(--both);border-radius:10px;padding:12px;margin:0 0 14px}
 .when label.cap{font-size:13px;font-weight:700;color:var(--ink)}
-.when input[type=date],.when input[type=time]{font-size:18px;font-weight:700;padding:9px 8px;border:2px solid #b9a6c4}
+.when input[type=date],.when input[type=time]{font-size:18px;font-weight:700;padding:9px 8px;border:2px solid #b9a6c4;
+  display:block;min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;min-height:48px;text-align:center}
+.when input::-webkit-date-and-time-value{text-align:center}
 .when .row{margin:0 0 10px}
 .by{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .by label{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 4px;border:1px solid var(--line);border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;background:#fff}
@@ -242,9 +245,23 @@ footer a{color:inherit}
   地図: <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院（地理院タイル）</a>。
   距離は直線での目安です。時刻は時刻表上の予定で、遅れや運休は反映されません。最新の運行情報は事業者の案内をご確認ください。<br>
   アプリの画面・検索の仕組み © 2026 sakimori480（バスのデータと地図は上記の各提供元に帰属します）
+  <span id="gcNote" hidden><br>閲覧数の把握に <a href="https://www.cloudflare.com/web-analytics/" target="_blank" rel="noopener">Cloudflare Web Analytics</a>（Cookieを使わないアクセス解析）を使っています。見られたページ・参照元・ブラウザの種類などを集計しますが、個人を特定する情報は集めていません。</span>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* 閲覧数の集計（Cloudflare Web Analytics）。
+   公開サイト以外（自分のパソコンで開いたときなど）では数えない。 */
+(()=>{
+  const CF_TOKEN='44b7212ba7e34c26939c847833d114a8';
+  if(location.hostname!=='sakimori480.github.io') return;
+  document.getElementById('gcNote').hidden=false;
+  const s=document.createElement('script');
+  s.defer=true; s.src='https://static.cloudflareinsights.com/beacon.min.js';
+  s.setAttribute('data-cf-beacon',JSON.stringify({token:CF_TOKEN}));
+  document.head.appendChild(s);
+})();
+</script>
 <script src="data/bus-data.js"></script>
 <script>
 const map = L.map('map',{preferCanvas:true,zoomSnap:0.5,zoomDelta:0.5,wheelPxPerZoomLevel:160}).setView([26.2125,127.6811],13);
