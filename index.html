@@ -44,7 +44,14 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .chk.off{color:var(--sub);cursor:default}
 .hint{font-size:12px;color:var(--sub);line-height:1.6;margin:4px 0 0}
 .notice{background:#fff;border:1px solid var(--line);border-left:4px solid var(--sub);border-radius:8px;padding:8px 10px;margin:0 0 14px;font-size:12px;line-height:1.6}
-.notice .nt{margin:0 0 2px;font-weight:700;font-size:13px}
+.notice .nt{margin:0;font-weight:700;font-size:13px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.notice .nt::-webkit-details-marker{display:none}
+.notice .nt::after{content:"▼ 開く";font-size:11px;font-weight:700;color:#1d6fb8}
+.notice[open] .nt{margin-bottom:2px}
+.notice[open] .nt::after{content:"▲ たたむ"}
+.notice .nt:focus-visible{outline:2px solid #1d6fb8;outline-offset:2px}
+.notice .chk.ok{font-size:12px;margin-top:6px;gap:6px}
+.notice .chk.ok input{width:16px;height:16px}
 .notice ul{margin:0;padding-left:1.2em;list-style:disc;font-size:12px}
 .notice li{padding:1px 0}
 .notice a{color:#1d6fb8;font-weight:700}
@@ -125,14 +132,15 @@ footer a{color:inherit}
 <body>
 <aside>
   <h1>沖縄バス：歩ける範囲と時刻</h1>
-  <div class="notice" role="note">
-    <p class="nt">はじめにお読みください</p>
+  <details class="notice" id="notice" open>
+    <summary class="nt">はじめにお読みください</summary>
     <ul>
       <li>沖縄バス（株）の路線の経路検索と時刻表示を目的としています。</li>
       <li>琉球バス交通・那覇バス・東陽バスは公開データがないため、含まれていません。</li>
       <li>運賃の検索は <a href="https://www.busnavi-okinawa.com/top/Transit" target="_blank" rel="noopener">バスなび沖縄</a> をご利用ください。</li>
     </ul>
-  </div>
+    <label class="chk ok"><input type="checkbox" id="noticeOk"> 確認しました（たたむ・次回から閉じた状態で表示）</label>
+  </details>
   <p class="hint" id="status">データを読み込んでいます…</p>
   <div class="row">
     <label class="cap">1. 地図をクリックして場所を決める</label>
@@ -797,6 +805,17 @@ function drawJourney(idx){
   layer.route=g.addTo(map);
   map.fitBounds(g.getBounds(),{padding:[30,30]});
 }
+
+/* 「はじめにお読みください」：確認したらたたみ、次回も閉じた状態にする（保存できない環境では毎回開く） */
+(()=>{
+  const box=$('notice'), ok=$('noticeOk'), KEY='okinawaBus.noticeOk';
+  let seen=false; try{ seen=localStorage.getItem(KEY)==='1'; }catch(e){}
+  if(seen){ box.open=false; ok.checked=true; }
+  ok.addEventListener('change',()=>{
+    try{ ok.checked ? localStorage.setItem(KEY,'1') : localStorage.removeItem(KEY); }catch(e){}
+    if(ok.checked) box.open=false;
+  });
+})();
 
 setNow();
 load();
