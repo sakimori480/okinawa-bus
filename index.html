@@ -123,10 +123,12 @@ h3{font-size:13px;margin:16px 0 4px;color:var(--sub)}
 footer{grid-column:1/-1;font-size:11px;color:var(--sub);padding:6px 12px;border-top:1px solid var(--line);background:#fff;line-height:1.6}
 footer a{color:inherit}
 @media(max-width:760px){
-  /* スマホ：地図 → 操作欄 → クレジットの順に、ページ全体を縦にスクロール */
+  /* スマホ：地図を上に固定し、その下で操作欄 → 結果 → クレジットを縦にスクロール */
   html,body{height:auto}
   body{display:flex;flex-direction:column}
-  #map{order:-1;height:52vh;min-height:300px;flex:none}
+  #map{order:-1;height:40vh;height:40svh;min-height:240px;flex:none;position:sticky;top:0;z-index:5;border-bottom:2px solid var(--line)}
+  /* 結果へ自動スクロールしたとき、固定した地図の下に隠れないようにする */
+  #jp,#tt{scroll-margin-top:calc(max(40svh,240px) + 8px)}
   aside{overflow:visible;border-right:0;border-top:1px solid var(--line)}
   .when input[type=date],.when input[type=time]{font-size:17px}
 }
@@ -264,7 +266,7 @@ footer a{color:inherit}
 </script>
 <script src="data/bus-data.js"></script>
 <script>
-const map = L.map('map',{preferCanvas:true,zoomSnap:0.5,zoomDelta:0.5,wheelPxPerZoomLevel:160}).setView([26.2125,127.6811],13);
+const map = L.map('map',{preferCanvas:true,zoomSnap:0.25,zoomDelta:0.25,wheelPxPerZoomLevel:120}).setView([26.2125,127.6811],13);
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'}).addTo(map);
 
 const $ = id=>document.getElementById(id);
